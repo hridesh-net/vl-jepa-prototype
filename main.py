@@ -51,6 +51,9 @@ OBJECTS = [
     "keyboard",
     "screen",
     "book",
+    "vanshika",
+    "ujjwal",
+    "shakti"
 ]
 
 prompt = "What objects are visible?"
@@ -68,9 +71,21 @@ cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
 # Webcam loop
 # --------------------------------------------------
 
-last_label = None
 last_embedding = None
-text_color = COLOR_STABLE
+previous_label = None
+display_sentence = "Detecting scene..."
+text_color = COLOR_CHANGE
+
+CHANGE_THRESHOLD = 0.15
+
+def describe_scene(current, previous, changed, confidence):
+    if previous is None:
+        return f"I see a {current}."
+
+    if changed and current != previous:
+        return f"A {current} has appeared in the scene."
+
+    return f"I still see a {current}."
 
 CHANGE_THRESHOLD = 0.15  # semantic change sensitivity
 
@@ -109,18 +124,31 @@ CHANGE_THRESHOLD = 0.15  # semantic change sensitivity
 #     # Press 'q' to quit
 #     if cv2.waitKey(1) & 0xFF == ord("q"):
 #         break
-changed = False
+
 for img_tensor, frame in webcam_stream(device=device):
     with torch.no_grad():
+        # ---------------------------------------------
+        # Forward pass
+        # ---------------------------------------------
         sv = vision(img_tensor)
-        sy_hat = predictor(sv, q_emb)  # [1, D]
+        sy_hat = predictor(sv, q_emb)
 
-        # Smooth embedding over last few frames
+        # ---------------------------------------------
+        # Temporal smoothing
+        # ---------------------------------------------
         embedding_buffer.append(sy_hat)
-        stable_emb = torch.mean(torch.stack(list(embedding_buffer)), dim=0)
 
-        # Compare with previous embedding
-        
+        if len(embedding_buffer) < 2:
+            stable_emb = sy_hat
+        else:
+            stable_emb = torch.mean(
+                torch.stack(list(embedding_buffer)), dim=0
+            )
+
+        # ---------------------------------------------
+        # Semantic change detection (PER FRAME)
+        # ---------------------------------------------
+        changed = False
         if last_embedding is not None:
             delta = 1 - F.cosine_similarity(stable_emb, last_embedding)
             if delta.item() > CHANGE_THRESHOLD:
@@ -128,45 +156,60 @@ for img_tensor, frame in webcam_stream(device=device):
 
         last_embedding = stable_emb.clone()
 
-        # Object classification (argmax)
+        # ---------------------------------------------
+        # Classification
+        # ---------------------------------------------
         sims = torch.matmul(
             F.normalize(stable_emb, dim=-1),
             F.normalize(object_embs, dim=-1).T
         )
-        confidence = sims.max().item()
-        
 
+        confidence = sims.max().item()
         best_idx = sims.argmax(dim=-1).item()
         current_label = OBJECTS[best_idx]
-        print("Detected:", current_label, "| confidence:", f"{confidence:.2f}")
+        
+        if current_label != previous_label:
+            changed = True
 
-        # Detect semantic change
-        if changed and current_label != last_label:
-            overlay_text = f"New object: {current_label}"
-            text_color = COLOR_CHANGE
-            last_label = current_label
-        else:
-            overlay_text = f"I see: {last_label}"
-            text_color = COLOR_STABLE
-
-        # --------------------------------------------------
-        # Draw overlay
-        # --------------------------------------------------
-        cv2.putText(
-            frame,
-            overlay_text,
-            (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1.0,
-            text_color,
-            2,
-            cv2.LINE_AA
+        print(
+            "Detected:", current_label,
+            "| confidence:", f"{confidence:.2f}",
+            "| changed:", changed
         )
 
-        cv2.imshow("VL-JEPA – Live Perception", frame)
+        # ---------------------------------------------
+        # Scene narration (SINGLE SOURCE OF TRUTH)
+        # ---------------------------------------------
+        if changed:
+            display_sentence = describe_scene(
+                current=current_label,
+                previous=previous_label,
+                changed=changed,
+                confidence=confidence
+            )
+            text_color = COLOR_CHANGE
+            previous_label = current_label
+        else:
+            display_sentence = f"I still see a {previous_label}." if previous_label else "Detecting scene..."
+            text_color = COLOR_STABLE
+
+    # ---------------------------------------------
+    # Draw overlay
+    # ---------------------------------------------
+    cv2.putText(
+        frame,
+        display_sentence,
+        (20, 40),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.9,
+        text_color,
+        2,
+        cv2.LINE_AA
+    )
+
+    cv2.imshow(WINDOW_NAME, frame)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
-
 
 cv2.destroyAllWindows()

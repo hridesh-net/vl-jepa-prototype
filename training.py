@@ -26,7 +26,7 @@ print("Training on:", device)
 # Config
 # --------------------------------------------------
 DATA_DIR = "data/train"
-EPOCHS = 10
+EPOCHS = 20
 LR = 1e-4
 SAVE_PATH = "predictor.pt"
 
