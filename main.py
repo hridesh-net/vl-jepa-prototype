@@ -3,7 +3,7 @@ import torch
 from collections import deque
 import torch.nn.functional as F
 
-from src.video_stream import webcam_stream
+from src.video_stream import stream_video
 from src.models.vision_encoder import VisionEncoder
 from src.models.y_encoder import YEncoder
 from src.models.predictor import Predictor
@@ -125,7 +125,7 @@ CHANGE_THRESHOLD = 0.15  # semantic change sensitivity
 #     if cv2.waitKey(1) & 0xFF == ord("q"):
 #         break
 
-for img_tensor, frame in webcam_stream(device=device):
+for img_tensor, frame in stream_video(device=device):
     with torch.no_grad():
         # ---------------------------------------------
         # Forward pass
