@@ -7,6 +7,17 @@ VL-JEPA (Vision-Language Joint Embedding Predictive Architecture) is a new resea
 
 This approach is powerful for real-time perception because it avoids unnecessary generation, reduces latency, and focuses on semantic understanding rather than storytelling. It is especially relevant for applications like live video analysis, robotics, AR/VR, agents, and world models—where understanding matters more than talking.
 
+----
+
+# Index
+| Module | Topic | Description | Folder |
+|--------|-------|-------------|--------|
+| 01 | Real Time Trainig | sample architecture and Implementation for realtime training model | [Real Time Trainig Architecture](RTT.md) |
+<!-- | 02 | PostgreSQL | Relational database concepts, schema design, ingestion & querying | 02-postgres/ |
+| 03 | Terraform | Infrastructure as Code, AWS basics, and building a data lake | 04-Terraform/ | -->
+
+----
+
 # Our Implementation (What we built)
 In this project, we implemented a VL-JEPA–inspired real-time perception system that works with both live webcam streams and prerecorded videos. We use a frozen vision encoder to extract visual embeddings, a lightweight predictor network to model semantic meaning, and a text embedding space to interpret what the scene represents. Instead of generating text every frame, the system monitors semantic change in embedding space and responds only when something meaningful changes.
 
